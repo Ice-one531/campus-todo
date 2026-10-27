@@ -27,7 +27,7 @@ router = APIRouter()
 # ↓↓↓ 发布前改成你自己的仓库（或设环境变量 CAMPUS_REPO）↓↓↓
 GITHUB_REPO = os.environ.get("CAMPUS_REPO", "Ice-one531/campus-todo")
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 _cache = {"ts": 0.0, "data": None, "checked": 0}
 _CACHE_TTL = 3600 * 3          # 3 小时
