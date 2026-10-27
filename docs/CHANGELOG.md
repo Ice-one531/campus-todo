@@ -1805,3 +1805,92 @@ E:\PortableGit\cmd\git.exe push origin v1.0.1
 ---
 
 ## C026 · 待填
+---
+
+## C026 · 2026-10-27 16:16 · 版本检查改用重定向，绕开 API 限流
+
+### 问题
+
+`/api/version` 一直返回空。排查发现：
+
+```
+直连 api.github.com:  HTTP 403
+代理 api.github.com:  HTTP 403  tag=None
+```
+
+**不是网络问题，是 GitHub API 限流**——未认证请求 60 次/小时。
+之前查 Actions、Release 用掉配额，测试时就撞上了。
+
+### 解法
+
+**不用 API**，改用 `github.com` 的页面重定向：
+
+```python
+r = requests.get(
+    "https://github.com/OWNER/REPO/releases/latest",
+    allow_redirects=False, timeout=8,
+)
+# 302 → Location: https://github.com/OWNER/REPO/releases/tag/v1.0.1
+tag = r.headers["Location"].split("/tag/")[-1]
+```
+
+**优点**：
+- 不消耗任何 API 配额
+- 不受 60 次/小时限制
+- 支持代理（直连失败自动试环境变量 → 配置 → 探测常见端口）
+
+### 三级代理探测
+
+```python
+def _candidates():
+    out = [None]                          # 1. 直连优先
+    for k in ("HTTPS_PROXY", "HTTP_PROXY"):  # 2. 环境变量
+        ...
+    cfg.data["settings"]["proxy"]         # 3. 项目配置
+    for port in [7897, 7890, 10809, ...]: # 4. 探测本地端口
+        ...
+```
+
+**实测**：直连就通（2.4 秒），代理只是兜底。
+
+### 缓存策略
+
+```
+成功 → 缓存 3 小时
+失败 → 缓存 10 分钟（避免每次请求都卡 8 秒）
+```
+
+**实测**：第二次请求 0.01 秒。
+
+### 端到端验证
+
+发 v1.0.1 后：
+
+```
+current=1.0.0  latest=1.0.1  has_update=True   ✓✓
+url=https://github.com/Ice-one531/campus-todo/releases/tag/v1.0.1
+```
+
+**版本检查功能完整可用。**
+
+### 当前发布状态
+
+| 版本 | 时间 | 安装包 |
+|---|---|---|
+| v1.0.1 | 16:14 | CampusTodo-Setup.exe 20 MB |
+| v1.0.0 | 16:10 | CampusTodo-Setup.exe 20 MB |
+
+### 发版命令（3 条）
+
+```powershell
+cd E:\CampusTodo
+E:\PortableGit\cmd\git.exe commit -am "feat: xxx"
+E:\PortableGit\cmd\git.exe tag v1.0.2
+E:\PortableGit\cmd\git.exe push origin main --tags
+```
+
+约 2 分钟后 Release 页出现新安装包。
+
+---
+
+## C027 · 待填
