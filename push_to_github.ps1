@@ -1,24 +1,27 @@
-# 一键 push 到 GitHub
+﻿# Push to GitHub
 $git = 'E:\PortableGit\cmd\git.exe'
 Set-Location E:\CampusTodo
 
-Write-Host '=== 1. 配置 remote ===' -ForegroundColor Cyan
+Write-Host "=== 1. Configure remote ===" -ForegroundColor Cyan
 $existing = & $git remote 2>$null
 if ($existing -contains 'origin') {
     & $git remote set-url origin https://github.com/Ice-one531/campus-todo.git
-    Write-Host '  已更新 origin' -ForegroundColor Green
+    Write-Host "  origin updated" -ForegroundColor Green
 } else {
     & $git remote add origin https://github.com/Ice-one531/campus-todo.git
-    Write-Host '  已添加 origin' -ForegroundColor Green
+    Write-Host "  origin added" -ForegroundColor Green
 }
 & $git remote -v
 
-Write-Host ''
-Write-Host '=== 2. push ===' -ForegroundColor Cyan
-Write-Host '  如果弹出浏览器授权页，登录 Ice-one531 并点 Authorize' -ForegroundColor Yellow
+Write-Host ""
+Write-Host "=== 2. Push ===" -ForegroundColor Cyan
+Write-Host "  A browser window may open. Login as Ice-one531 and click Authorize." -ForegroundColor Yellow
 & $git push -u origin main
 
-Write-Host ''
-Write-Host '=== 3. 结果 ===' -ForegroundColor Cyan
+Write-Host ""
+Write-Host "=== 3. Result ===" -ForegroundColor Cyan
 & $git log --oneline -1
 & $git remote -v
+Write-Host ""
+Write-Host "Done. Press any key to close."
+$null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')

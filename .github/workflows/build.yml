@@ -84,10 +84,18 @@ jobs:
       - name: Build installer
         shell: pwsh
         run: |
+          # 从 tag 提取版本号（v1.0.0 -> 1.0.0），拿不到就用 1.0.0
+          $ver = "${{ github.ref_name }}" -replace '^v', ''
+          if ([string]::IsNullOrWhiteSpace($ver) -or $ver -notmatch '^\d') { $ver = '1.0.0' }
+          $env:APP_VERSION = $ver
+          Write-Host "APP_VERSION = $env:APP_VERSION"
+
           $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
           & $iscc installer\CampusTodo.iss
+          if ($LASTEXITCODE -ne 0) { throw 'ISCC exit code ' + $LASTEXITCODE }
           if (-not (Test-Path 'dist\CampusTodo-Setup.exe')) { throw 'compile failed' }
-          Write-Host "installer built"
+          $f = Get-Item 'dist\CampusTodo-Setup.exe'
+          Write-Host "installer built: $([math]::Round($f.Length/1MB,1)) MB"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

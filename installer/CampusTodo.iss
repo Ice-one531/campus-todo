@@ -3,8 +3,13 @@
 ;  与本地版的区别：全部用相对路径，输出到 dist\
 ; ============================================================
 
-#define MyAppName "校园通知智能待办"
+; 版本号：优先取环境变量 APP_VERSION，取不到就用默认值 1.0.0
 #define MyAppVersion GetEnv("APP_VERSION")
+#if MyAppVersion == ""
+  #define MyAppVersion "1.0.0"
+#endif
+
+#define MyAppName "校园通知智能待办"
 #define LaunchVbs "tools\launch.vbs"
 
 [Setup]
@@ -18,7 +23,9 @@ AppId={{8F3A9C21-4B7D-4E5A-9C1F-2D6B8E4A7F30}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher=Campus Todo
-VersionInfoVersion={#MyAppVersion}.0
+VersionInfoVersion={#MyAppVersion}
+VersionInfoProductName={#MyAppName}
+VersionInfoDescription={#MyAppName} 安装程序
 
 OutputDir=..\dist
 OutputBaseFilename=CampusTodo-Setup
