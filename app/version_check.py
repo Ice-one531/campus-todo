@@ -18,7 +18,7 @@ from fastapi import APIRouter
 router = APIRouter()
 
 # ↓↓↓ 发布前改成你自己的仓库（或设环境变量 CAMPUS_REPO）↓↓↓
-GITHUB_REPO = os.environ.get("CAMPUS_REPO", "YOUR_NAME/campus-todo")
+GITHUB_REPO = os.environ.get("CAMPUS_REPO", "Ice-one531/campus-todo")
 
 APP_VERSION = "1.0.0"
 
