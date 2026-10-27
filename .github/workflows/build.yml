@@ -1,0 +1,118 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download Python embeddable
+        shell: pwsh
+        run: |
+          $url = 'https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip'
+          Invoke-WebRequest -Uri $url -OutFile python-embed.zip
+          Expand-Archive python-embed.zip -DestinationPath _build/python -Force
+
+      - name: Configure embeddable python
+        shell: pwsh
+        run: |
+          $pth = '_build/python/python312._pth'
+          $lines = @('python312.zip', '.', 'Lib\site-packages', 'import site')
+          [System.IO.File]::WriteAllLines((Resolve-Path $pth), $lines)
+          New-Item -ItemType Directory -Force -Path '_build/python/Lib/site-packages' | Out-Null
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --target _build/python/Lib/site-packages --python-version 312 --only-binary=:all: fastapi==0.115.6 uvicorn==0.34.0 pydantic==2.10.4 requests==2.32.3 psutil==6.1.1
+
+      - name: Download NapCat
+        shell: pwsh
+        run: |
+          $ver = 'v4.18.41'
+          $url = "https://github.com/NapNeko/NapCatQQ/releases/download/$ver/NapCat.Shell.zip"
+          try {
+            Invoke-WebRequest -Uri $url -OutFile NapCat.Shell.zip -TimeoutSec 180
+          } catch {
+            Write-Host 'official failed, trying mirror'
+            Invoke-WebRequest -Uri "https://gh-proxy.com/$url" -OutFile NapCat.Shell.zip -TimeoutSec 300
+          }
+          Expand-Archive NapCat.Shell.zip -DestinationPath _build/NapCat -Force
+          Get-ChildItem _build/NapCat/native -Recurse -File |
+            Where-Object { $_.FullName -match '(linux|darwin)' } |
+            Remove-Item -Force
+          Write-Host "NapCat size: $((Get-ChildItem _build/NapCat -Recurse -File | Measure-Object Length -Sum).Sum / 1MB) MB"
+
+      - name: Assemble app files
+        shell: pwsh
+        run: |
+          $dirs = @('_build/CampusTodo/app', '_build/CampusTodo/web', '_build/CampusTodo/tools', '_build/CampusTodo/data')
+          foreach ($d in $dirs) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
+
+          Copy-Item _build/python -Destination '_build/CampusTodo/python' -Recurse -Force
+          Copy-Item _build/NapCat -Destination '_build/CampusTodo/NapCat' -Recurse -Force
+
+          Get-ChildItem app -Filter *.py |
+            Where-Object { $_.Name -ne 'desktop_app.py' } |
+            Copy-Item -Destination '_build/CampusTodo/app' -Force
+          Copy-Item app/config.example.json '_build/CampusTodo/app/config.json' -Force
+
+          Copy-Item web/* -Destination '_build/CampusTodo/web' -Recurse -Force
+          Copy-Item tools/*.vbs -Destination '_build/CampusTodo/tools' -Force
+          Copy-Item requirements.txt -Destination '_build/CampusTodo' -Force
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          & $iscc installer\CampusTodo.iss
+          if (-not (Test-Path 'dist\CampusTodo-Setup.exe')) { throw 'compile failed' }
+          Write-Host "installer built"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CampusTodo-Setup
+          path: dist/CampusTodo-Setup.exe
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/CampusTodo-Setup.exe
+          generate_release_notes: true
+          body: |
+            ## 安装方式
+
+            下载下面的 `CampusTodo-Setup.exe`，双击安装（免管理员）。
+
+            **环境要求**
+            - Windows 10 / 11（64 位）
+            - 电脑上装了 QQ（NT 版 9.9.x 以上）
+
+            **首次使用**
+            1. 双击桌面「校园待办」
+            2. 点「绑定 QQ」→「启动 QQ 协议端」→ 手机扫码（**手机上要点确认登录**）
+            3. 勾选要监控的群
+
+            详见安装包内的 `使用说明.txt`。

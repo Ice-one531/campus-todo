@@ -1,0 +1,15 @@
+# 核心依赖（约 20 MB，分发包已内置）
+fastapi==0.115.6
+uvicorn==0.34.0
+pydantic==2.10.4
+requests==2.32.3
+psutil==6.1.1
+
+# 可选：图片 OCR（约 700 MB，需要时再装）
+# easyocr==1.7.2
+# torch==2.14.1
+# torchvision==0.29.1
+# opencv-python-headless==5.0.0.93
+
+# 可选：桌面端（分发包不含）
+# PySide6==6.12.0

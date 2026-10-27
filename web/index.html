@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>校园待办</title>
+<link rel="stylesheet" href="./lib/element-plus.css">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div id="app" v-cloak>
+  <!-- ═══ 顶部 Sticky Header ═══ -->
+  <header class="topbar">
+    <div class="tb-left">
+      <div class="logo">📋</div>
+      <div class="tb-title">
+        <div class="tb-main">{{ todayText }}</div>
+        <div class="tb-sub">{{ greeting }}</div>
+      </div>
+    </div>
+
+    <div class="tb-right">
+      <!-- 状态三色胶囊 -->
+      <div class="pill" :class="qqPill.cls" @click="openQQ" :title="qqPill.tip">
+        <span class="dot"></span>{{ qqPill.text }}
+      </div>
+      <div class="pill" :class="modelPill.cls" :title="modelPill.tip">
+        <span class="dot"></span>{{ modelPill.text }}
+      </div>
+      <div class="pill" :class="gamePill.cls" :title="gamePill.tip">
+        <span class="dot"></span>{{ gamePill.text }}
+      </div>
+      <el-dropdown trigger="click" @command="onMenu">
+        <span class="more-btn">⋯</span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="settings">⚙️ 设置</el-dropdown-item>
+            <el-dropdown-item command="logs">📜 运行日志</el-dropdown-item>
+            <el-dropdown-item command="eval">🎯 准确率评测</el-dropdown-item>
+            <el-dropdown-item command="restart" divided>🔄 重启 NapCat</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
+  </header>
+
+  <!-- ═══ 主区：左 70% 待办 / 右 30% 管理 ═══ -->
+  <main class="main" v-if="route === 'home'">
+    <!-- 左：待办流 -->
+    <section class="col-left">
+      <div class="tabs-row">
+        <button v-for="t in tabs" :key="t.key"
+                :class="['tab-btn', { active: tab === t.key }]"
+                @click="tab = t.key">
+          {{ t.icon }} {{ t.label }}
+          <span v-if="t.count" class="tab-badge">{{ t.count }}</span>
+        </button>
+      </div>
+
+      <div class="todo-list" v-loading="loadingTodos">
+        <div v-if="!currentTodos.length" class="empty-state">
+          <div class="empty-icon">{{ tab === 'completed' ? '🗂' : '✨' }}</div>
+          <div class="empty-text">{{ emptyText }}</div>
+        </div>
+
+        <div v-for="t in currentTodos" :key="t.id" class="todo-item" :class="{ done: t.status === 'completed' }">
+          <!-- 变更提示 -->
+          <div v-if="t.is_modified_flag" class="changed-banner" @click="showDiff(t)">
+            ⚠️ 内容有变更，点此对比
+          </div>
+
+          <div class="ti-head">
+            <button class="ti-check" @click="toggleDone(t)">
+              {{ t.status === 'completed' ? '✓' : '○' }}
+            </button>
+            <div class="ti-title">{{ t.title }}</div>
+            <span class="ti-conf" :class="confCls(t.confidence)">{{ Math.round((t.confidence||0)*100) }}%</span>
+          </div>
+
+          <div class="ti-meta">
+            <span class="m time">⏰ {{ t.deadline || '未指定' }}</span>
+            <span class="m loc">📍 {{ t.location || '未指定' }}</span>
+            <span class="m grp" v-if="t.source_group">💬 {{ groupName(t.source_group) }}</span>
+          </div>
+
+          <div v-if="t.details" class="ti-detail">{{ t.details }}</div>
+
+          <div class="ti-actions">
+            <button class="mini-btn" v-if="t.status === 'pending_confirm'" @click="setStatus(t, 'active')">✓ 加入待办</button>
+            <button class="mini-btn" v-if="t.status === 'pending_confirm'" @click="setStatus(t, 'ignored')">忽略</button>
+            <button class="mini-btn" @click="showRaw(t)">📄 原文</button>
+            <button class="mini-btn danger" @click="removeTodo(t)">删除</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右：快捷管理 -->
+    <aside class="col-right">
+      <!-- 服务总开关 -->
+      <div class="side-card">
+        <div class="sc-title">服务状态</div>
+        <div class="master-switch" :class="{ on: snap.service_running }"
+             @click="toggleService">
+          <div class="ms-knob"></div>
+          <span>{{ snap.service_running ? '运行中' : '已停止' }}</span>
+        </div>
+        <div class="sc-hint" v-if="snap.queue_size">
+          📥 {{ snap.queue_size }} 条消息待处理
+        </div>
+      </div>
+
+      <!-- QQ 账号 + 健康状态 + 看门狗 -->
+      <div class="side-card">
+        <div class="sc-title">
+          QQ 账号
+          <button class="mini-link" @click="openQQ">管理</button>
+        </div>
+        <div v-if="qq.logged_in" class="qq-info">
+          <div class="qq-avatar">{{ (qq.nickname || '?').slice(0,1) }}</div>
+          <div class="qq-text">
+            <div class="qq-name">{{ qq.nickname }}</div>
+            <div class="qq-uin">{{ qq.uin }}</div>
+          </div>
+        </div>
+        <div v-else-if="qq.running" class="qq-empty" @click="openQQ">
+          <div class="qq-plus">⏳</div>
+          <div>等待扫码，点此查看</div>
+        </div>
+        <div v-else class="qq-empty" @click="openQQ">
+          <div class="qq-plus">+</div>
+          <div>点此绑定 QQ</div>
+        </div>
+
+        <!-- 健康状态 -->
+        <div class="health-row" @click="refreshHealth">
+          <span class="h-dot" :class="health.state"></span>
+          <span class="h-text">{{ health.text || '检测中…' }}</span>
+          <span class="h-time" v-if="health.checked_at">{{ healthAge }}前</span>
+        </div>
+
+        <!-- 看门狗开关 -->
+        <div class="wd-row">
+          <span>挂了自动重启</span>
+          <el-switch v-model="watchdogOn" size="small" @change="toggleWatchdog" />
+        </div>
+        <div class="wd-hint" v-if="watchdogOn">
+          每 {{ health.watchdog?.interval || 30 }} 秒检查一次
+          <span v-if="health.watchdog?.restart_count"> · 已重启 {{ health.watchdog.restart_count }} 次</span>
+        </div>
+      </div>
+
+      <!-- 监控群 -->
+      <div class="side-card">
+        <div class="sc-title">
+          监控的群
+          <button class="mini-link" @click="openGroupPicker">+ 添加</button>
+        </div>
+        <div v-if="!monitoredList.length" class="sc-hint">还没有监控任何群</div>
+        <div v-for="g in monitoredList" :key="g.group_id" class="group-row">
+          <span class="g-name">{{ g.group_name || g.group_id }}</span>
+          <button class="g-del" @click="toggleGroup(g.group_id)">×</button>
+        </div>
+      </div>
+
+      <!-- 手动新增 -->
+      <div class="side-card">
+        <div class="sc-title">快速添加待办</div>
+        <el-input v-model="quickText" placeholder="比如：明天交实验报告"
+                  size="small" @keyup.enter="quickAdd" />
+        <el-button size="small" style="width:100%;margin-top:8px"
+                   @click="quickAdd" :disabled="!quickText.trim()">
+          添加
+        </el-button>
+      </div>
+    </aside>
+  </main>
+
+  <!-- 其他页面 -->
+  <main class="main-single" v-else>
+    <component :is="viewComp" :snap="snap" :counts="counts"
+               @reload="refreshAll" @toast="toast" />
+  </main>
+
+  <!-- ═══ QQ 绑定弹窗 ═══ -->
+  <el-dialog v-model="qqDialog" title="绑定 QQ" width="420px" :close-on-click-modal="false">
+    <!-- 已登录 -->
+    <div v-if="qq.logged_in" class="qr-logged">
+      <div class="qr-ok">✓</div>
+      <div class="qr-ok-title">已绑定</div>
+      <div class="qr-ok-sub">{{ qq.nickname }}（{{ qq.uin }}）</div>
+      <el-button type="danger" plain size="small" style="margin-top:16px"
+                 @click="logoutQQ">退出登录</el-button>
+    </div>
+
+    <!-- 未运行 -->
+    <div v-else-if="qq.phase === 'not_running'" class="qr-start">
+      <div class="qr-icon">🔌</div>
+      <div class="qr-hint">NapCat 未运行</div>
+      <el-button type="primary" @click="startNapcat" :loading="starting">
+        启动 QQ 协议端
+      </el-button>
+      <div class="qr-tip">首次启动约需 20 秒</div>
+    </div>
+
+    <!-- 启动中 / 等扫码 -->
+    <div v-else class="qr-wait">
+      <div v-if="qrData" class="qr-img-wrap">
+        <img :src="qrData" class="qr-img" alt="二维码" />
+      </div>
+      <div v-else class="qr-loading">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <span>二维码生成中…</span>
+      </div>
+      <div class="qr-hint">{{ qq.hint }}</div>
+      <div class="qr-tip">用手机 QQ 扫一扫，登录小号</div>
+    </div>
+  </el-dialog>
+
+  <!-- ═══ 群选择弹窗 ═══ -->
+  <el-dialog v-model="groupDialog" title="选择要监控的群" width="520px">
+    <div v-if="groupLoading" style="text-align:center;padding:30px">
+      <el-icon class="is-loading"><Loading /></el-icon> 加载中…
+    </div>
+    <div v-else>
+      <div v-if="!allGroups.length" class="sc-hint">没有拉到群列表，可能未登录</div>
+      <div v-for="g in allGroups" :key="g.group_id" class="pick-row">
+        <el-checkbox :model-value="g.monitored" @change="toggleGroup(g.group_id)" />
+        <div class="pick-info">
+          <div class="pick-name">{{ g.group_name }}</div>
+          <div class="pick-meta">{{ g.group_id }} · {{ g.member_count }} 人</div>
+        </div>
+        <span v-if="g.member_count > 500" class="pick-warn">大群</span>
+      </div>
+    </div>
+  </el-dialog>
+
+  <!-- 原文弹窗 -->
+  <el-dialog v-model="rawDialog" title="原始消息" width="560px">
+    <pre class="raw-pre">{{ rawContent }}</pre>
+  </el-dialog>
+
+  <!-- 变更对比 -->
+  <el-dialog v-model="diffDialog" title="变更对比" width="600px">
+    <div class="diff-old">{{ diffOld }}</div>
+    <div class="diff-new">{{ diffNew }}</div>
+    <template #footer>
+      <el-button size="small" @click="diffDialog=false">关闭</el-button>
+      <el-button size="small" type="primary" @click="clearFlag">已核对</el-button>
+    </template>
+  </el-dialog>
+</div>
+
+<script src="./lib/vue.global.prod.js"></script>
+<script src="./lib/element-plus.full.js"></script>
+<script src="./lib/element-plus-icons.js"></script>
+<script src="./lib/element-plus-zh-cn.js"></script>
+<script src="./js/token.js"></script>
+<script src="./js/api.js"></script>
+<script src="./js/sse.js"></script>
+<script src="./js/views/settings.js"></script>
+<script src="./js/views/logs.js"></script>
+<script src="./js/views/eval.js"></script>
+<script src="./js/app.js"></script>
+</body>
+</html>

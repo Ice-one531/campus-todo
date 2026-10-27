@@ -1,0 +1,55 @@
+{
+    "monitored_groups":  [
+
+                         ],
+    "user_profile":  {
+                         "name":  [
+
+                                  ],
+                         "student_id":  [
+
+                                        ],
+                         "class_info":  [
+
+                                        ],
+                         "roles":  [
+
+                                   ],
+                         "gender":  "",
+                         "custom_keywords":  [
+
+                                             ]
+                     },
+    "model":  {
+                  "main":  "qwen2.5:3b",
+                  "ollama_host":  "http://127.0.0.1:11434",
+                  "keep_alive":  "10m",
+                  "timeout":  120
+              },
+    "game_mode":  {
+                      "mode":  "auto",
+                      "game_processes":  [
+                                             "DeltaForceClient-Win64-Shipping.exe",
+                                             "DeltaForce.exe"
+                                         ],
+                      "poll_seconds":  1.5
+                  },
+    "settings":  {
+                     "enable_ocr":  true,
+                     "confidence_threshold":  0.5,
+                     "window_minutes":  5,
+                     "auto_clean_days":  30,
+                     "allow_lan_access":  false,
+                     "lan_token":  ""
+                 },
+    "urgent":  {
+                   "identity_pattern":  "(@ææäºº|@å\u0085¨ä½æå|éå\u0085´å»º|è½¯ä»¶2ç­|è½¯æ2ç­|å¿çå§å|ç¤¾å·¥é¨)",
+                   "time_pattern":  "(ç«å»|é©¬ä¸|ç´§æ¥|ç°å¨|10åé|åå°æ¶|ä¸å°æ¶å\u0085|ä»å¤©å\u0085|ä»æ|æªæ­¢|ä»å¤©|å°½å¿«)",
+                   "action_pattern":  "(å¼ä¼|éå|é¢è¡¨|ç­¾å°|æäº¤|ç­è¾©|æ¥å¯|ç¹å|è¡¥äº¤|è°è¯¾|æ¢æå®¤)",
+                   "push_to_qq":  true,
+                   "push_qq_id":  0
+               },
+    "qq":  {
+               "watchdog":  false
+           }
+}
