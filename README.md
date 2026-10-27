@@ -1,5 +1,9 @@
 # 校园通知智能待办
 
+[![Release](https://img.shields.io/github/v/release/Ice-one531/campus-todo)](https://github.com/Ice-one531/campus-todo/releases/latest)
+[![Build](https://github.com/Ice-one531/campus-todo/actions/workflows/build.yml/badge.svg)](https://github.com/Ice-one531/campus-todo/actions/workflows/build.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 从 QQ 群消息里自动提取通知，变成一份能一眼看完的待办清单。
 
 不用每天往上翻几百条群消息，打开就知道「要做什么、什么时候、在哪」。
@@ -42,7 +46,7 @@
 
 ### 1. 下载
 
-从 [Releases](../../releases/latest) 下载 `CampusTodo-Setup.exe`（约 18 MB）。
+从 [Releases](https://github.com/Ice-one531/campus-todo/releases/latest) 下载 `CampusTodo-Setup.exe`（约 18 MB）。
 
 ### 2. 安装
 

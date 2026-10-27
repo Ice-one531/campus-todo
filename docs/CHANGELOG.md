@@ -1740,3 +1740,68 @@ E:\CampusTodo-App
 ---
 
 ## C024 · 待填：多来源扩展（钉钉 / 微信）
+---
+
+## C025 · 2026-10-27 16:10 · 发布到 GitHub，CI 自动构建跑通
+
+### 仓库
+
+https://github.com/Ice-one531/campus-todo
+
+### 首次发布踩的坑
+
+| # | 问题 | 解决 |
+|---|---|---|
+| 1 | git 没装 | 下 PortableGit 便携版（winget 卡在下载） |
+| 2 | exFAT 不记文件所有者 → `dubious ownership` | `git config --global --add safe.directory` |
+| 3 | PortableGit 6156 个文件混进仓库 | 移到 `E:\PortableGit`（仓库外） |
+| 4 | `.git` 78 MB | 删掉重建 → 0.69 MB |
+| 5 | GCM 弹窗卡 4 分钟 | 用户已点 Authorize，但我把进程杀了导致回调丢失 |
+| 6 | `github.com` 超时（SNI 阻断） | **发现用户有代理 127.0.0.1:7897，git 默认不读系统代理** → `git config --global http.proxy` |
+| 7 | token 缺 workflow scope | 重新生成，勾 `repo` + `workflow` |
+| 8 | CI 报 `VersionInfoVersion is invalid` | workflow 未设 `APP_VERSION` → 加 `$env:APP_VERSION` + iss 加默认值 |
+| 9 | iss 中文被当 ANSI | 加 UTF-8 BOM |
+
+### 关键教训
+
+**① 改前端/配置后必须破缓存**
+之前反复"改了没反应"，最后发现是浏览器/进程用的还是旧文件。
+
+**② 不要过早杀进程**
+GCM 卡了 4 分钟，我以为死了就杀，正好杀在用户点授权的瞬间。**等用户操作完再判断**。
+
+**③ 系统代理 ≠ git 代理**
+Windows 的 `ProxyEnable=1` 只对浏览器生效，命令行工具要单独配。
+
+**④ CI 里的版本号要有兜底**
+`GetEnv("APP_VERSION")` 在变量为空时返回空串，`VersionInfoVersion=.0` 直接报错。
+
+### 构建结果
+
+```
+Run #40471503919  Build & Release
+  15 个步骤全部 ✓
+  耗时 1.3 分钟
+  产物 CampusTodo-Setup.exe  20 MB
+  发布到 Releases v1.0.0
+```
+
+### 后续发版流程
+
+```powershell
+cd E:\CampusTodo
+# 改代码...
+E:\PortableGit\cmd\git.exe add -A
+E:\PortableGit\cmd\git.exe commit -m "feat: xxx"
+E:\PortableGit\cmd\git.exe push origin main
+
+# 打 tag 触发自动构建
+E:\PortableGit\cmd\git.exe tag v1.0.1
+E:\PortableGit\cmd\git.exe push origin v1.0.1
+```
+
+**约 2 分钟后** Release 页出现新安装包。
+
+---
+
+## C026 · 待填
